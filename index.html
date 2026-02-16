@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Work</title>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <style>
+    :root { --bg:#0b0f17; --card:#121a27; --text:#e8eefc; --muted:#9fb0d0; --accent:#4b8bff; --danger:#ff4b4b; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: var(--text); }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 14px; }
+    .card { background: var(--card); border: 1px solid rgba(255,255,255,.06); border-radius: 14px; padding: 12px; margin: 10px 0; }
+    h2,h3 { margin: 8px 0; }
+    .muted { color: var(--muted); font-size: 14px; }
+    input, textarea, button, select {
+      width: 100%; box-sizing: border-box;
+      border-radius: 12px; border: 1px solid rgba(255,255,255,.12);
+      padding: 10px 12px; background: rgba(255,255,255,.04); color: var(--text);
+      outline: none;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    button { background: var(--accent); border: none; font-weight: 700; cursor: pointer; }
+    button.secondary { background: rgba(255,255,255,.08); font-weight: 600; }
+    button.danger { background: var(--danger); }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    #map { height: 260px; border-radius: 12px; overflow: hidden; }
+    .list { display: grid; gap: 10px; }
+    .item { border: 1px solid rgba(255,255,255,.08); border-radius: 12px; padding: 10px; }
+    .badge { display:inline-block; padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,.08); font-size: 12px; }
+    .actions { display:flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    .actions button { width: auto; padding: 9px 12px; }
+    .sep { height: 1px; background: rgba(255,255,255,.08); margin: 10px 0; }
+
+    .modeBox {
+      display: grid;
+      gap: 12px;
+      align-items: center;
+      justify-items: stretch;
+      margin-top: 6px;
+    }
+    .modeCenter { margin-top: 8px; }
+    .modeBottom { margin-top: 90px; } /* мастер ниже */
+    .modeBtn { padding: 14px 12px; font-size: 16px; }
+    .topbar { display:flex; gap: 10px; align-items:center; justify-content: space-between; }
+    .topbar button { width:auto; }
+    .hidden { display:none !important; }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <div style="font-weight:800; font-size:18px;">Work</div>
+      <div class="muted" id="subtitle">Telegram WebApp</div>
+    </div>
+    <button class="secondary" id="btnLogout">Выйти</button>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="card" id="profileCard">
+    <h3>Профиль</h3>
+    <div class="muted">Для работы нужны город и телефон.</div>
+    <div class="sep"></div>
+
+    <label class="muted">Город</label>
+    <input id="city" placeholder="Например: Москва" />
+
+    <div class="row">
+      <button class="secondary" id="btnGeo">Определить по гео (примерно)</button>
+      <button class="secondary" id="btnSaveProfile">Сохранить</button>
+    </div>
+
+    <label class="muted">Телефон</label>
+    <input id="phone" placeholder="+7..." />
+
+    <div class="muted" id="meInfo" style="margin-top:10px;"></div>
+  </div>
+
+  <!-- MODE CHOICE -->
+  <div class="card" id="modeCard">
+    <h3>Выберите режим</h3>
+    <div class="modeBox">
+      <button class="modeBtn" id="btnClient">Заказчик</button>
+      <button class="modeBtn secondary modeBottom" id="btnMaster">Мастер</button>
+    </div>
+  </div>
+
+  <!-- CLIENT VIEW -->
+  <div class="hidden" id="clientView">
+    <div class="card">
+      <h3>Создать заявку</h3>
+      <textarea id="desc" placeholder="Описание заявки"></textarea>
+      <input id="addr" placeholder="Адрес текстом (как удобно)" />
+      <div class="muted">Поставьте точку на карте (клик по карте).</div>
+      <div id="map"></div>
+      <div class="actions">
+        <button id="btnCreateOrder">Создать</button>
+        <button class="secondary" id="btnRefreshMyOrders">Обновить мои заявки</button>
+        <button class="secondary" id="btnBack1">Назад</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Мои заявки</h3>
+      <div class="list" id="myOrders"></div>
+    </div>
+
+    <div class="card hidden" id="clientOrderDetailsCard">
+      <h3>Заявка: детали</h3>
+      <div id="clientOrderDetails"></div>
+      <div class="actions">
+        <button class="secondary" id="btnCloseClientDetails">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MASTER VIEW -->
+  <div class="hidden" id="masterView">
+    <div class="card">
+      <h3>Лента заявок (ваш город)</h3>
+      <div class="actions">
+        <button id="btnRefreshFeed">Обновить</button>
+        <button class="secondary" id="btnBack2">Назад</button>
+      </div>
+      <div class="sep"></div>
+      <div class="list" id="feed"></div>
+    </div>
+
+    <div class="card hidden" id="masterOrderDetailsCard">
+      <h3>Заявка: детали</h3>
+      <div id="masterOrderDetails"></div>
+      <div class="actions">
+        <button class="secondary" id="btnCloseMasterDetails">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="muted" style="margin: 14px 4px;">
+    Если открыли не из Telegram — работать не будет (нет initData).
+  </div>
+</div>
+
+<script>
+  // ================== CONFIG ==================
+  const API_BASE = "https://YOUR-RENDER-SERVICE.onrender.com"; // <-- ВАЖНО: замените
+
+  // ================== Telegram init ==================
+  const tg = window.Telegram?.WebApp;
+  tg?.ready();
+
+  function toast(msg) {
+    if (tg?.showPopup) tg.showPopup({ title: "Сообщение", message: String(msg), buttons: [{type:"ok"}] });
+    else alert(msg);
+  }
+
+  // ================== Auth ==================
+  let jwtToken = localStorage.getItem("jwt") || null;
+
+  async function api(path, { method="GET", body=null, auth=true } = {}) {
+    const headers = { "Content-Type": "application/json" };
+    if (auth) {
+      const t = await ensureAuth();
+      headers["Authorization"] = "Bearer " + t;
+    }
+    const res = await fetch(API_BASE + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : null
+    });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+    if (!res.ok) {
+      const msg = (data && data.detail) ? data.detail : text;
+      throw new Error(msg || ("HTTP " + res.status));
+    }
+    return data;
+  }
+
+  async function ensureAuth() {
+    if (jwtToken) return jwtToken;
+    const initData = tg?.initData;
+    if (!initData) throw new Error("Нет Telegram initData. Откройте WebApp через бота.");
+    const res = await fetch(API_BASE + "/auth/telegram", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({ initData })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.detail || "Auth failed");
+    jwtToken = data.token;
+    localStorage.setItem("jwt", jwtToken);
+    return jwtToken;
+  }
+
+  async function loadMe() {
+    const me = await api("/me");
+    document.getElementById("city").value = me.city || "";
+    document.getElementById("phone").value = me.phone || "";
+    document.getElementById("meInfo").innerHTML =
+      `<div><span class="badge">id ${me.id}</span> <span class="badge">@${me.username || "no_username"}</span></div>` +
+      `<div class="muted">Имя: ${me.name || "-"}</div>`;
+    return me;
+  }
+
+  document.getElementById("btnLogout").onclick = () => {
+    localStorage.removeItem("jwt");
+    jwtToken = null;
+    toast("Токен удалён. Перезайдите через бота.");
+  };
+
+  document.getElementById("btnSaveProfile").onclick = async () => {
+    try {
+      const city = document.getElementById("city").value.trim();
+      const phone = document.getElementById("phone").value.trim();
+      await api("/me", { method:"PATCH", body: { city, phone }});
+      toast("Сохранено");
+      await loadMe();
+    } catch (e) { toast(e.message); }
+  };
+
+  // Примерное определение города: получаем координаты (браузер) и просто ставим "город не определён"
+  // Для нормального определения города нужен reverse-geocode сервис (добавим позже).
+  document.getElementById("btnGeo").onclick = async () => {
+    try {
+      if (!navigator.geolocation) throw new Error("Геолокация не поддерживается");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          // MVP: просто подсказка, город вручную
+          toast(`Координаты получены: ${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}. Город введите вручную.`);
+        },
+        (err) => toast("Не удалось получить гео: " + err.message),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } catch (e) { toast(e.message); }
+  };
+
+  // ================== Map (Leaflet) ==================
+  const map = L.map('map').setView([55.751244, 37.618423], 10); // Москва по умолчанию
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  let marker = null;
+  let picked = { lat: 55.751244, lon: 37.618423 };
+
+  map.on('click', (e) => {
+    picked = { lat: e.latlng.lat, lon: e.latlng.lng };
+    if (marker) marker.setLatLng(e.latlng);
+    else marker = L.marker(e.latlng).addTo(map);
+  });
+
+  // ================== Views ==================
+  const modeCard = document.getElementById("modeCard");
+  const clientView = document.getElementById("clientView");
+  const masterView = document.getElementById("masterView");
+
+  function showMode() {
+    modeCard.classList.remove("hidden");
+    clientView.classList.add("hidden");
+    masterView.classList.add("hidden");
+    document.getElementById("subtitle").textContent = "Выберите режим";
+  }
+  function showClient() {
+    modeCard.classList.add("hidden");
+    clientView.classList.remove("hidden");
+    masterView.classList.add("hidden");
+    document.getElementById("subtitle").textContent = "Режим: Заказчик";
+    setTimeout(() => map.invalidateSize(), 50);
+  }
+  function showMaster() {
+    modeCard.classList.add("hidden");
+    clientView.classList.add("hidden");
+    masterView.classList.remove("hidden");
+    document.getElementById("subtitle").textContent = "Режим: Мастер";
+  }
+
+  document.getElementById("btnClient").onclick = async () => {
+    try {
+      const me = await loadMe();
+      if (!me.city) { toast("Сначала укажите город в профиле"); return; }
+      showClient();
+      await refreshMyOrders();
+    } catch (e) { toast(e.message); }
+  };
+
+  document.getElementById("btnMaster").onclick = async () => {
+    try {
+      const me = await loadMe();
+      if (!me.city) { toast("Сначала укажите город в профиле"); return; }
+      showMaster();
+      await refreshFeed();
+    } catch (e) { toast(e.message); }
+  };
+
+  document.getElementById("btnBack1").onclick = showMode;
+  document.getElementById("btnBack2").onclick = showMode;
+
+  // ================== Client actions ==================
+  document.getElementById("btnCreateOrder").onclick = async () => {
+    try {
+      const description = document.getElementById("desc").value.trim();
+      const address_text = document.getElementById("addr").value.trim();
+      if (!description) throw new Error("Введите описание");
+      if (!address_text) throw new Error("Введите адрес");
+      const me = await api("/me");
+      if (!me.city) throw new Error("Укажите город в профиле");
+
+      await api("/orders", { method:"POST", body: {
+        description,
+        address_text,
+        lat: picked.lat,
+        lon: picked.lon,
+        city: me.city
+      }});
+
+      document.getElementById("desc").value = "";
+      document.getElementById("addr").value = "";
+      toast("Заявка создана");
+      await refreshMyOrders();
+    } catch (e) { toast(e.message); }
+  };
+
+  document.getElementById("btnRefreshMyOrders").onclick = () => refreshMyOrders();
+
+  async function refreshMyOrders() {
+    const list = document.getElementById("myOrders");
+    list.innerHTML = "";
+    const orders = await api("/orders/my");
+    if (!orders.length) {
+      list.innerHTML = `<div class="muted">Пока нет заявок</div>`;
+      return;
+    }
+    for (const o of orders) {
+      const el = document.createElement("div");
+      el.className = "item";
+      el.innerHTML = `
+        <div style="display:flex; justify-content:space-between; gap:10px;">
+          <div>
+            <div><b>#${o.id}</b> <span class="badge">${o.status}</span> <span class="badge">${o.city}</span></div>
+            <div class="muted">${escapeHtml(o.address_text)}</div>
+          </div>
+          <button class="secondary" data-open="${o.id}">Открыть</button>
+        </div>
+        <div class="muted" style="margin-top:6px;">${escapeHtml(o.description)}</div>
+        <div class="actions">
+          <button class="danger" data-cancel="${o.id}">Отменить</button>
+        </div>
+      `;
+      el.querySelector("[data-open]").onclick = () => openClientOrder(o.id);
+      el.querySelector("[data-cancel]").onclick = () => cancelOrder(o.id);
+      list.appendChild(el);
+    }
+  }
+
+  async function cancelOrder(orderId) {
+    if (!confirm("Отменить заявку?")) return;
+    try {
+      await api(`/orders/${orderId}/cancel`, { method:"POST" });
+      toast("Отменено");
+      await refreshMyOrders();
+    } catch (e) { toast(e.message); }
+  }
+
+  const clientDetailsCard = document.getElementById("clientOrderDetailsCard");
+  document.getElementById("btnCloseClientDetails").onclick = () => clientDetailsCard.classList.add("hidden");
+
+  async function openClientOrder(orderId) {
+    try {
+      const details = await api(`/orders/${orderId}`);
+      const o = details.order;
+      const responses = details.responses || [];
+
+      let html = `
+        <div><b>#${o.id}</b> <span class="badge">${o.status}</span> <span class="badge">${o.city}</span></div>
+        <div class="muted">${escapeHtml(o.address_text)}</div>
+        <div style="margin-top:8px;">${escapeHtml(o.description)}</div>
+      `;
+
+      if (o.status === "in_progress") {
+        const contact = await api(`/orders/${orderId}/contact`);
+        html += `<div class="sep"></div>
+          <div><b>Принятый мастер:</b> ${escapeHtml(contact.name || ("@" + (contact.username || "")) || "-")}</div>
+          <div class="actions">
+            ${contact.phone ? `<a href="tel:${escapeAttr(contact.phone)}"><button>Позвонить</button></a>` : `<span class="muted">Телефон не указан</span>`}
+          </div>
+        `;
+      }
+
+      html += `<div class="sep"></div><b>Отклики мастеров</b><div class="muted">Примите одного мастера или отклоните</div>`;
+
+      if (!responses.length) {
+        html += `<div class="muted" style="margin-top:8px;">Пока нет откликов</div>`;
+      } else {
+        for (const r of responses) {
+          html += `
+            <div class="item" style="margin-top:8px;">
+              <div><b>Мастер id ${r.master_id}</b> <span class="badge">${r.status}</span></div>
+              <div class="actions">
+                ${o.status === "open" && r.status === "pending" ? `
+                  <button data-acc="${r.id}">Принять</button>
+                  <button class="secondary" data-rej="${r.id}">Отклонить</button>
+                ` : ``}
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      clientDetailsCard.classList.remove("hidden");
+      const box = document.getElementById("clientOrderDetails");
+      box.innerHTML = html;
+
+      box.querySelectorAll("[data-acc]").forEach(btn => {
+        btn.onclick = async () => {
+          try {
+            await api(`/orders/${orderId}/accept`, { method:"POST", body:{ response_id: Number(btn.dataset.acc) }});
+            toast("Мастер принят");
+            await openClientOrder(orderId);
+            await refreshMyOrders();
+          } catch (e) { toast(e.message); }
+        };
+      });
+      box.querySelectorAll("[data-rej]").forEach(btn => {
+        btn.onclick = async () => {
+          try {
+            await api(`/orders/${orderId}/reject`, { method:"POST", body:{ response_id: Number(btn.dataset.rej) }});
+            toast("Отклик отклонён");
+            await openClientOrder(orderId);
+          } catch (e) { toast(e.message); }
+        };
+      });
+
+    } catch (e) { toast(e.message); }
+  }
+
+  // ================== Master actions ==================
+  document.getElementById("btnRefreshFeed").onclick = () => refreshFeed();
+  const masterDetailsCard = document.getElementById("masterOrderDetailsCard");
+  document.getElementById("btnCloseMasterDetails").onclick = () => masterDetailsCard.classList.add("hidden");
+
+  async function refreshFeed() {
+    const list = document.getElementById("feed");
+    list.innerHTML = "";
+    try {
+      const orders = await api("/orders/feed");
+      if (!orders.length) {
+        list.innerHTML = `<div class="muted">В вашем городе нет открытых заявок</div>`;
+        return;
+      }
+      for (const o of orders) {
+        const el = document.createElement("div");
+        el.className = "item";
+        el.innerHTML = `
+          <div><b>#${o.id}</b> <span class="badge">${o.status}</span> <span class="badge">${o.city}</span></div>
+          <div class="muted">${escapeHtml(o.address_text)}</div>
+          <div style="margin-top:6px;">${escapeHtml(o.description)}</div>
+          <div class="actions">
+            <button data-open="${o.id}" class="secondary">Открыть</button>
+            <button data-respond="${o.id}">Откликнуться</button>
+            <button data-withdraw="${o.id}" class="secondary">Отменить отклик</button>
+          </div>
+        `;
+        el.querySelector("[data-open]").onclick = () => openMasterOrder(o.id);
+        el.querySelector("[data-respond]").onclick = () => respond(o.id);
+        el.querySelector("[data-withdraw]").onclick = () => withdraw(o.id);
+        list.appendChild(el);
+      }
+    } catch (e) {
+      toast(e.message);
+    }
+  }
+
+  async function respond(orderId) {
+    try {
+      await api(`/orders/${orderId}/respond`, { method:"POST" });
+      toast("Отклик отправлен");
+    } catch (e) { toast(e.message); }
+  }
+
+  async function withdraw(orderId) {
+    try {
+      await api(`/orders/${orderId}/responses/me/withdraw`, { method:"POST" });
+      toast("Отклик отменён");
+    } catch (e) { toast(e.message); }
+  }
+
+  async function openMasterOrder(orderId) {
+    try {
+      const details = await api(`/orders/${orderId}`);
+      const o = details.order;
+      const responses = details.responses || []; // для мастера backend возвращает только его отклик (если есть)
+
+      let html = `
+        <div><b>#${o.id}</b> <span class="badge">${o.status}</span> <span class="badge">${o.city}</span></div>
+        <div class="muted">${escapeHtml(o.address_text)}</div>
+        <div style="margin-top:8px;">${escapeHtml(o.description)}</div>
+      `;
+
+      const my = responses[0];
+
+      html += `<div class="sep"></div>
+        <div><b>Мой отклик:</b> ${my ? `<span class="badge">${my.status}</span>` : `<span class="muted">нет</span>`}</div>
+        <div class="actions">
+          <button onclick="respond(${o.id})">Откликнуться</button>
+          <button class="secondary" onclick="withdraw(${o.id})">Отменить отклик</button>
+        </div>
+      `;
+
+      if (o.status === "in_progress") {
+        // контакт доступен только принятому мастеру
+        try {
+          const contact = await api(`/orders/${orderId}/contact`);
+          html += `<div class="sep"></div>
+            <div><b>Контакт заказчика:</b> ${escapeHtml(contact.name || ("@" + (contact.username || "")) || "-")}</div>
+            <div class="actions">
+              ${contact.phone ? `<a href="tel:${escapeAttr(contact.phone)}"><button>Позвонить</button></a>` : `<span class="muted">Телефон не указан</span>`}
+            </div>
+          `;
+        } catch (_) {}
+      }
+
+      masterDetailsCard.classList.remove("hidden");
+      document.getElementById("masterOrderDetails").innerHTML = html;
+    } catch (e) { toast(e.message); }
+  }
+
+  // ================== Utils ==================
+  function escapeHtml(s) {
+    return String(s ?? "").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;");
+  }
+  function escapeAttr(s) {
+    return String(s ?? "").replaceAll('"',"&quot;").replaceAll("'","&#39;");
+  }
+
+  // ================== Boot ==================
+  (async function boot() {
+    try {
+      await ensureAuth();
+      await loadMe();
+      showMode();
+    } catch (e) {
+      toast(e.message);
+      showMode();
+    }
+  })();
+</script>
+</body>
+</html>

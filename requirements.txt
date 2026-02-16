@@ -1,0 +1,6 @@
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
+SQLAlchemy==2.0.38
+psycopg[binary]==3.2.5
+python-jose==3.3.0
+pydantic==2.10.6

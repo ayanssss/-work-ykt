@@ -18,7 +18,6 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, Session
 
 
-# ----------------- Config -----------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 JWT_SECRET = os.getenv("JWT_SECRET", "change_me")
@@ -33,7 +32,6 @@ if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN is required")
 
 
-# ----------------- DB -----------------
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
@@ -77,7 +75,6 @@ def init_db():
     Base.metadata.create_all(bind=engine)
 
 
-# ----------------- Telegram initData verify -----------------
 def verify_init_data(init_data: str, bot_token: str) -> dict:
     data = dict(parse_qsl(init_data, keep_blank_values=True))
     if "hash" not in data:
@@ -96,7 +93,6 @@ def verify_init_data(init_data: str, bot_token: str) -> dict:
     return data
 
 
-# ----------------- Auth helpers -----------------
 def create_token(user_id: int) -> str:
     exp = datetime.utcnow() + timedelta(days=JWT_TTL_DAYS)
     return jwt.encode({"sub": str(user_id), "exp": exp}, JWT_SECRET, algorithm=JWT_ALG)
@@ -128,7 +124,6 @@ def get_current_user(
     return user
 
 
-# ----------------- Schemas -----------------
 class AuthIn(BaseModel):
     initData: str
 
@@ -173,7 +168,6 @@ class AcceptIn(BaseModel):
     response_id: int
 
 
-# ----------------- App -----------------
 app = FastAPI(title="TG Orders API (no city/phone)")
 
 app.add_middleware(
@@ -189,7 +183,6 @@ def _startup():
     init_db()
 
 
-# ----------------- Routes -----------------
 @app.post("/auth/telegram", response_model=AuthOut)
 def auth_telegram(payload: AuthIn, db: Session = Depends(get_db)):
     try:
@@ -226,15 +219,9 @@ def auth_telegram(payload: AuthIn, db: Session = Depends(get_db)):
 
 @app.get("/me", response_model=MeOut)
 def me(current: User = Depends(get_current_user)):
-    return MeOut(
-        id=current.id,
-        telegram_id=current.telegram_id,
-        name=current.name,
-        username=current.username,
-    )
+    return MeOut(id=current.id, telegram_id=current.telegram_id, name=current.name, username=current.username)
 
 
-# ---- Client: Orders ----
 @app.post("/orders", response_model=OrderOut)
 def create_order(body: OrderCreateIn, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     order = Order(
@@ -253,9 +240,7 @@ def create_order(body: OrderCreateIn, db: Session = Depends(get_db), current: Us
 
 @app.get("/orders/my", response_model=List[OrderOut])
 def my_orders(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
-    rows = db.execute(
-        select(Order).where(Order.client_id == current.id).order_by(Order.created_at.desc())
-    ).scalars().all()
+    rows = db.execute(select(Order).where(Order.client_id == current.id).order_by(Order.created_at.desc())).scalars().all()
     return [OrderOut(**o.__dict__) for o in rows]
 
 @app.get("/orders/{order_id}", response_model=OrderDetailsOut)
@@ -300,12 +285,9 @@ def cancel_order(order_id: int, db: Session = Depends(get_db), current: User = D
     return {"ok": True}
 
 
-# ---- Master: feed & respond ----
 @app.get("/orders/feed", response_model=List[OrderOut])
 def feed(db: Session = Depends(get_db), current: User = Depends(get_current_user)):
-    rows = db.execute(
-        select(Order).where(Order.status == "open").order_by(Order.created_at.desc())
-    ).scalars().all()
+    rows = db.execute(select(Order).where(Order.status == "open").order_by(Order.created_at.desc())).scalars().all()
     return [OrderOut(**o.__dict__) for o in rows]
 
 @app.post("/orders/{order_id}/respond", response_model=ResponseOut)
@@ -348,7 +330,6 @@ def withdraw_my_response(order_id: int, db: Session = Depends(get_db), current: 
     return {"ok": True}
 
 
-# ---- Client: accept/reject ----
 @app.post("/orders/{order_id}/accept")
 def accept_master(order_id: int, body: AcceptIn, db: Session = Depends(get_db), current: User = Depends(get_current_user)):
     order = db.get(Order, order_id)
@@ -367,7 +348,6 @@ def accept_master(order_id: int, body: AcceptIn, db: Session = Depends(get_db), 
 
     order.accepted_master_id = resp.master_id
     order.status = "in_progress"
-
     resp.status = "accepted"
 
     others = db.execute(

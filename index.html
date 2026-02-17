@@ -114,11 +114,25 @@
 
   const tg = window.Telegram?.WebApp;
   tg?.ready();
+  console.log("Telegram.WebApp exists:", !!tg);
+console.log("initData length:", tg?.initData?.length || 0);
 
-  function toast(msg) {
-    if (tg?.showPopup) tg.showPopup({ title: "Сообщение", message: String(msg), buttons: [{type:"ok"}] });
-    else alert(msg);
+function toast(msg) {
+  console.log("TOAST:", msg);
+  try {
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: "Сообщение",
+        message: String(msg),
+        buttons: [{ type: "ok" }],
+      });
+      return;
+    }
+  } catch (e) {
+    console.log("showPopup failed:", e);
   }
+  alert(String(msg));
+}
 
   let jwtToken = localStorage.getItem("jwt") || null;
 
@@ -387,6 +401,9 @@
 
   window.respond = respond;
   window.withdraw = withdraw;
+  
 </script>
+  
 </body>
 </html>
+
